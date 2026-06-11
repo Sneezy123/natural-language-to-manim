@@ -1,0 +1,4 @@
+media/
+backend/__pycache__
+backend/renders
+build.sh
