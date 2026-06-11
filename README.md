@@ -31,8 +31,8 @@ The installer auto-detects your package manager and installs missing system pack
 ## Installation
 
 ```bash
-# 1. Clone the repository (including the bundled ManimGL submodule)
-git clone --recurse-submodules https://github.com/Sneezy123/natural-language-to-manim.git
+# 1. Clone the repository
+git clone https://github.com/Sneezy123/natural-language-to-manim.git
 cd natural-language-to-manim
 
 # 2. Run the installer  (takes 2–5 minutes on a fresh machine)

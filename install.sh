@@ -148,10 +148,15 @@ log "Upgrading pip …"
 "$VENV_PIP" install --upgrade pip --quiet
 
 # ─── 5. Install ManimGL (3b1b fork) inside the venv ──────────────────────────
-log "Installing ManimGL from the bundled manim_3b1b submodule …"
-if [[ ! -f "$REPO_ROOT/manim_3b1b/setup.py" && ! -f "$REPO_ROOT/manim_3b1b/setup.cfg" ]]; then
-    fail "manim_3b1b directory is missing or incomplete. Did you clone with --recurse-submodules?"
+log "Ensuring manim_3b1b submodule is populated …"
+# Works regardless of whether the user cloned with --recurse-submodules or not
+if [[ ! -f "$REPO_ROOT/manim_3b1b/setup.cfg" ]]; then
+    log "manim_3b1b appears empty – running: git submodule update --init manim_3b1b"
+    git -C "$REPO_ROOT" submodule update --init manim_3b1b || \
+        fail "Could not initialise the manim_3b1b submodule. Check your internet connection and try again."
 fi
+
+log "Installing ManimGL …"
 
 "$VENV_PIP" install -e "$REPO_ROOT/manim_3b1b" --quiet
 ok "ManimGL installed"
