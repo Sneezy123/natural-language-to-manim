@@ -24,6 +24,7 @@ import {
   buildHelperPrompt,
 } from "./utils/llm";
 import type { Provider, LLMConfig } from "./utils/llm";
+import ManimEditor from "./ManimEditor";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -137,6 +138,17 @@ export default function App() {
         console.error("Documentation load error:", err);
       });
   }, []);
+
+  // Listen to remote render events from Monaco editor (Ctrl+R keybinding)
+  useEffect(() => {
+    const handleRemoteRender = () => {
+      handleRender();
+    };
+    window.addEventListener("manim-render", handleRemoteRender);
+    return () => {
+      window.removeEventListener("manim-render", handleRemoteRender);
+    };
+  }, [code, quality, skipAnimations]);
 
   // Sync model defaults when provider changes
   const handleProviderChange = (newProvider: Provider) => {
@@ -300,6 +312,51 @@ export default function App() {
     setCode(snippet);
   };
 
+  // Helper to parse code elements within text (e.g. `code`)
+  const parseCodeAndText = (text: string, keyPrefix: string) => {
+    const parts = text.split(/(`[^`\n]+`)/g);
+    return parts.map((part, index) => {
+      const key = `${keyPrefix}-code-${index}`;
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return (
+          <code
+            key={key}
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: "11px",
+              backgroundColor: "rgba(255, 255, 255, 0.08)",
+              padding: "2px 4px",
+              borderRadius: "4px",
+              color: "#c084fc",
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+            }}
+          >
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  // Helper to parse inline elements like **bold** (which can contain nested `code`)
+  const parseInlineElements = (text: string, keyPrefix: string) => {
+    // Regex to split by **bold**
+    const parts = text.split(/(\*\*.*?\*\*)/g);
+    return parts.map((part, index) => {
+      const key = `${keyPrefix}-bold-${index}`;
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return (
+          <strong key={key} style={{ fontWeight: "700", color: "var(--text-primary)" }}>
+            {parseCodeAndText(part.slice(2, -2), key)}
+          </strong>
+        );
+      }
+      return parseCodeAndText(part, key);
+    });
+  };
+
   // Render markdown text in chat
   const renderFormattedText = (text: string) => {
     const parts = text.split(/(```[\s\S]*?```)/g);
@@ -308,17 +365,18 @@ export default function App() {
         const match = part.match(/```(\w*)\n([\s\S]*?)```/);
         const codeText = match ? match[2] : part.slice(3, -3);
         return (
-          <div key={index} style={{ position: "relative", margin: "12px 0" }}>
+          <div key={index} style={{ position: "relative", margin: "8px 0" }}>
             <pre
               style={{
                 backgroundColor: "#0b0c10",
-                padding: "12px",
-                borderRadius: "8px",
+                padding: "8px 10px",
+                borderRadius: "6px",
                 fontFamily: "var(--font-mono)",
-                fontSize: "12px",
+                fontSize: "11px",
                 overflowX: "auto",
                 border: "1px solid var(--border-color)",
                 color: "#f8fafc",
+                lineHeight: "1.4",
               }}
             >
               <code>{codeText.trim()}</code>
@@ -326,17 +384,17 @@ export default function App() {
             <div
               style={{
                 display: "flex",
-                gap: "8px",
+                gap: "6px",
                 position: "absolute",
-                right: "8px",
-                top: "8px",
+                right: "6px",
+                top: "6px",
               }}
             >
               <button
                 title="Copy to clipboard"
                 onClick={() => navigator.clipboard.writeText(codeText.trim())}
                 style={{
-                  padding: "4px",
+                  padding: "3px",
                   backgroundColor: "rgba(255, 255, 255, 0.05)",
                   border: "1px solid var(--border-color)",
                   borderRadius: "4px",
@@ -344,53 +402,164 @@ export default function App() {
                   color: "var(--text-secondary)",
                 }}
               >
-                <Copy size={14} />
+                <Copy size={12} />
               </button>
               <button
                 title="Load into Editor"
                 onClick={() => handleInsertCode(codeText.trim())}
                 style={{
-                  padding: "4px 8px",
+                  padding: "3px 6px",
                   backgroundColor: "var(--primary-glow)",
                   border: "1px solid var(--border-focus)",
                   borderRadius: "4px",
                   cursor: "pointer",
-                  fontSize: "10px",
+                  fontSize: "9px",
                   fontWeight: "600",
                   color: "white",
                 }}
               >
-                Use Code
+                Use
               </button>
             </div>
           </div>
         );
       } else {
-        const inlineParts = part.split(/(`[^`\n]+`)/g);
-        return (
-          <p key={index} style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>
-            {inlineParts.map((subPart, subIndex) => {
-              if (subPart.startsWith("`") && subPart.endsWith("`")) {
-                return (
-                  <code
-                    key={subIndex}
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "12px",
-                      backgroundColor: "rgba(255,255,255,0.08)",
-                      padding: "2px 4px",
-                      borderRadius: "4px",
-                      color: "#c084fc",
-                    }}
-                  >
-                    {subPart.slice(1, -1)}
-                  </code>
-                );
-              }
-              return subPart;
-            })}
-          </p>
-        );
+        // Process lines for headings, lists, and paragraphs
+        const lines = part.split("\n");
+        const elements: React.ReactNode[] = [];
+        let listItems: React.ReactNode[] = [];
+        let listKey = 0;
+
+        const flushList = () => {
+          if (listItems.length > 0) {
+            elements.push(
+              <ul
+                key={`list-${index}-${listKey++}`}
+                style={{
+                  margin: "4px 0 4px 16px",
+                  paddingLeft: "0",
+                  listStyleType: "disc",
+                }}
+              >
+                {listItems}
+              </ul>
+            );
+            listItems = [];
+          }
+        };
+
+        lines.forEach((line, lineIdx) => {
+          const trimmed = line.trim();
+          if (!trimmed) {
+            flushList();
+            return;
+          }
+
+          // Check for headers
+          if (trimmed.startsWith("### ")) {
+            flushList();
+            elements.push(
+              <h5
+                key={`h3-${index}-${lineIdx}`}
+                style={{
+                  margin: "8px 0 4px 0",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "var(--text-primary)",
+                }}
+              >
+                {parseInlineElements(trimmed.slice(4), `h3-${index}-${lineIdx}`)}
+              </h5>
+            );
+          } else if (trimmed.startsWith("## ")) {
+            flushList();
+            elements.push(
+              <h4
+                key={`h2-${index}-${lineIdx}`}
+                style={{
+                  margin: "10px 0 4px 0",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  color: "var(--text-primary)",
+                }}
+              >
+                {parseInlineElements(trimmed.slice(3), `h2-${index}-${lineIdx}`)}
+              </h4>
+            );
+          } else if (trimmed.startsWith("# ")) {
+            flushList();
+            elements.push(
+              <h3
+                key={`h1-${index}-${lineIdx}`}
+                style={{
+                  margin: "12px 0 6px 0",
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  color: "var(--text-primary)",
+                }}
+              >
+                {parseInlineElements(trimmed.slice(2), `h1-${index}-${lineIdx}`)}
+              </h3>
+            );
+          }
+          // Check for bullet lists
+          else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+            listItems.push(
+              <li
+                key={`li-${index}-${lineIdx}`}
+                style={{
+                  margin: "2px 0",
+                  fontSize: "12px",
+                  color: "var(--text-secondary)",
+                  lineHeight: "1.4",
+                }}
+              >
+                {parseInlineElements(trimmed.slice(2), `li-${index}-${lineIdx}`)}
+              </li>
+            );
+          }
+          // Check for ordered lists
+          else if (/^\d+\.\s/.test(trimmed)) {
+            listItems.push(
+              <li
+                key={`li-${index}-${lineIdx}`}
+                style={{
+                  margin: "2px 0",
+                  fontSize: "12px",
+                  color: "var(--text-secondary)",
+                  lineHeight: "1.4",
+                }}
+              >
+                {parseInlineElements(
+                  trimmed.replace(/^\d+\.\s/, ""),
+                  `li-${index}-${lineIdx}`
+                )}
+              </li>
+            );
+          }
+          // Regular line
+          else {
+            flushList();
+            elements.push(
+              <p
+                key={`p-${index}-${lineIdx}`}
+                style={{
+                  margin: "4px 0",
+                  fontSize: "12px",
+                  color: "var(--text-secondary)",
+                  lineHeight: "1.4",
+                  wordBreak: "break-word",
+                  overflowWrap: "break-word",
+                }}
+              >
+                {parseInlineElements(line, `p-${index}-${lineIdx}`)}
+              </p>
+            );
+          }
+        });
+
+        flushList();
+        return <div key={index}>{elements}</div>;
       }
     });
   };
@@ -486,14 +655,8 @@ export default function App() {
           </div>
 
           <div className="editor-container">
-            <div className="code-editor-wrapper">
-              <textarea
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="code-textarea"
-                placeholder="Write your Manim Python code here..."
-                spellCheck="false"
-              />
+            <div className="code-editor-wrapper" style={{ minHeight: "350px" }}>
+              <ManimEditor value={code} onChange={setCode} />
             </div>
 
             <div className="prompt-bar">

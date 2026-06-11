@@ -389,7 +389,7 @@ select {
 
 /* Console Logs / Error terminal */
 .console-panel {
-    height: 200px;
+    height: 25%;
     background-color: #0b0c10;
     border-top: 1px solid var(--border-color);
     display: flex;
@@ -458,12 +458,15 @@ select {
 .chat-message {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    max-width: 85%;
-    padding: 12px 16px;
+    gap: 4px;
+    max-width: 96%;
+    padding: 10px 12px;
     border-radius: var(--border-radius);
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 12px;
+    line-height: 1.45;
+    word-break: break-word;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .chat-message.assistant {
@@ -471,6 +474,7 @@ select {
     background-color: var(--bg-surface);
     border: 1px solid var(--border-color);
     color: var(--text-primary);
+    width: 100%;
 }
 
 .chat-message.user {
@@ -485,7 +489,7 @@ select {
 }
 
 .chat-message-meta {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.05em;
     color: var(--text-muted);
@@ -493,7 +497,7 @@ select {
 }
 
 .chat-message-body p {
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .chat-message-body p:last-child {
@@ -502,26 +506,28 @@ select {
 
 .chat-message-body pre {
     background-color: #0b0c10;
-    padding: 8px;
+    padding: 6px 8px;
     border-radius: 6px;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 12px;
-    margin: 8px 0;
+    font-size: 11px;
+    margin: 6px 0;
     border: 1px solid var(--border-color);
 }
 
 .chat-message-body code {
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 11px;
     background-color: rgba(255, 255, 255, 0.05);
     padding: 2px 4px;
     border-radius: 4px;
+    word-break: break-all;
 }
 
 .chat-message-body pre code {
     background-color: transparent;
     padding: 0;
+    word-break: normal;
 }
 
 .chat-input-bar {
