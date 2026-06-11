@@ -90,6 +90,7 @@ export default function App() {
   const [skipAnimations, setSkipAnimations] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
+
   // Editor and Input
   const [code, setCode] = useState<string>(DEFAULT_CODE);
   const [nlPrompt, setNlPrompt] = useState<string>("");
@@ -219,15 +220,17 @@ export default function App() {
     }
     if (!nlPrompt.trim()) return;
 
+    const capturedPrompt = nlPrompt;
+    setNlPrompt(""); // Clear input immediately
     setIsCompiling(true);
     setCompileError(null);
     setCompileResult(null);
 
-    const systemPrompt = buildGeneratePrompt(nlPrompt);
+    const systemPrompt = buildGeneratePrompt(capturedPrompt, docs);
     const llmConfig: LLMConfig = { provider, apiKey, model };
 
     try {
-      const resultText = await callLLM(llmConfig, systemPrompt, nlPrompt);
+      const resultText = await callLLM(llmConfig, systemPrompt, capturedPrompt);
       const extractedCode = extractCode(resultText);
       setCode(extractedCode);
       // Run compiler automatically
@@ -247,15 +250,17 @@ export default function App() {
     }
     if (!nlPrompt.trim()) return;
 
+    const capturedPrompt = nlPrompt;
+    setNlPrompt(""); // Clear input immediately
     setIsCompiling(true);
     setCompileError(null);
     setCompileResult(null);
 
-    const systemPrompt = buildRefinePrompt(code, nlPrompt);
+    const systemPrompt = buildRefinePrompt(code, capturedPrompt, docs);
     const llmConfig: LLMConfig = { provider, apiKey, model };
 
     try {
-      const resultText = await callLLM(llmConfig, systemPrompt, nlPrompt);
+      const resultText = await callLLM(llmConfig, systemPrompt, capturedPrompt);
       const extractedCode = extractCode(resultText);
       setCode(extractedCode);
       // Run compiler automatically
