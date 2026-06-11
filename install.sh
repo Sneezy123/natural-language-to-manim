@@ -159,6 +159,7 @@ fi
 log "Installing ManimGL …"
 
 "$VENV_PIP" install -e "$REPO_ROOT/manim_3b1b" --quiet
+"$VENV_PIP" install -r "$REPO_ROOT/manim_3b1b/requirements.txt" --quiet
 ok "ManimGL installed"
 
 # ─── 6. Install backend Python dependencies ───────────────────────────────────
